@@ -1341,6 +1341,11 @@ public class ReactionModelGenerator {
             // initializeCoreEdgeReactionModel();//10/4/07 gmagoon moved from below to run
 // initializeCoreEdgeReactionModel before initializeReactionSystem; 11/3-4/07 gmagoon: probably reverted on or before
 // 10/10/07
+            
+            
+//********************%% initializeReactionSystems()
+            
+            
             initializeReactionSystems();
         } catch (IOException e) {
             Logger.logStackTrace(e);
@@ -1351,6 +1356,11 @@ public class ReactionModelGenerator {
             Logger.critical(e.getMessage());
             System.exit(0);
         }
+        
+        
+//********************%% initializeCoreEdgeReactionModel()
+        
+        
         // 10/31/07 gmagoon: initialize validList (to false) before initializeCoreEdgeReactionModel is called
         validList = new LinkedList();
         for (Integer i = 0; i < reactionSystemList.size(); i++) {
@@ -1371,6 +1381,10 @@ public class ReactionModelGenerator {
         // 5/6/08 gmagoon: determine whether there are intermediate time/conversion steps, type of termination tester is
 // based on characteristics of 1st reaction system (it is assumed that they are all identical in terms of type of
 // termination tester)
+        
+      
+        //********************%%  set intermediateSteps
+        
         boolean intermediateSteps = true;
         ReactionSystem rs0 = (ReactionSystem) reactionSystemList.get(0);
         if (rs0.finishController.terminationTester instanceof ReactionTimeTT) {
@@ -1382,6 +1396,11 @@ public class ReactionModelGenerator {
 // DynamicSimulators and determine conversion length
             intermediateSteps = false;
         }
+        
+
+      //********************%%   set initList, beginList, endList, lastList, currentList, condChangedList, rxnChangedList      
+        
+        
         // 10/24/07 gmagoon: note: each element of for loop could be done in parallel if desired; some modifications
 // would be needed
         for (Iterator iter = reactionSystemList.iterator(); iter.hasNext();) {
@@ -1410,7 +1429,7 @@ public class ReactionModelGenerator {
                 end = new ReactionTime(1e6, "sec");
                 endList.add(end);
             }
-            // int iterationNumber = 1;
+
             lastTList.add(rs.getTemperature(init));
             currentTList.add(rs.getTemperature(init));
             lastPList.add(rs.getPressure(init));
@@ -1419,6 +1438,10 @@ public class ReactionModelGenerator {
             reactionChangedList.add(false);// 10/31/07 gmagoon: added
             // Chemkin.writeChemkinInputFile(reactionSystem.getReactionModel(),reactionSystem.getPresentStatus());
         }
+        
+        
+      //********************%% set interationNum
+        
         int iterationNumber = 1;
         LinkedList terminatedList = new LinkedList();// 10/24/07 gmagoon: this may not be necessary, as if one
 // reactionSystem is terminated, I think all should be terminated
@@ -1427,13 +1450,18 @@ public class ReactionModelGenerator {
 // the reactionSystem variables satisfy termination and validity, respectively
         boolean allTerminated = true;
         boolean allValid = true;
+        
+        
+      //********************%% if restart, initialize pDepNetwork and print model and write into chemkin
+        
+        
         // IF RESTART IS TURNED ON
         // Update the systemSnapshot for each ReactionSystem in the reactionSystemList
         if (readrestart) {
             for (Integer i = 0; i < reactionSystemList.size(); i++) {
                 ReactionSystem rs = (ReactionSystem) reactionSystemList.get(i);
                 InitialStatus is = rs.getInitialStatus();
-                putRestartSpeciesInInitialStatus(is, i);
+                putRestartSpeciesInInitialStatus(is, i);//put reacted species in core reaction model from restart file
                 rs.appendUnreactedSpeciesStatus(
                         (InitialStatus) initialStatusList.get(i),
                         rs.getPresentTemperature());
@@ -1449,6 +1477,11 @@ public class ReactionModelGenerator {
                 +(System.currentTimeMillis() - Global.tAtInitialization) / 1000. / 60.));
         printMemoryUsed();
         Logger.flush();
+        
+        
+      //********************%% solve for each rxnSys to get the end time and set terminatedList and validList; set rxnChangedList all false
+        
+        
         // 10/24/07 gmagoon: note: each element of for loop could be done in parallel if desired; some modifications
 // would be needed
         for (Integer i = 0; i < reactionSystemList.size(); i++) {
@@ -1469,6 +1502,10 @@ public class ReactionModelGenerator {
                 allValid = false;
             reactionChangedList.set(i, false);
         }
+        
+        
+      //********************%% write Dictionary and diagnosticInfo
+        
         // 9/1/09 gmagoon: if we are using QM, output a file with the CHEMKIN name, the RMG name, the (modified) InChI,
 // and the (modified) InChIKey
         if (!ChemGraph.TDMETHOD.contains("benson")) {
@@ -1494,8 +1531,18 @@ public class ReactionModelGenerator {
                 + ((CoreEdgeReactionModel) getReactionModel())
                         .getUnreactedReactionSetIncludingReverseSize() + "\t"
                 + Global.makeSpecies + "\n");
+        
+        
+      //********************%% LOOP for reaction model growth
+        
+        
         double solverMin = 0;
         double vTester = 0;
+        
+        LinkedList currentConvList = new LinkedList();
+        for (Integer i = 0; i < reactionSystemList.size(); i++) {
+            currentConvList.add(0);
+        }
         /*
          * if (!restart){ writeRestartFile(); writeCoreReactions(); writeAllReactions(); }
          */
@@ -1508,7 +1555,13 @@ public class ReactionModelGenerator {
         // 10/24/07: changed to use allTerminated and allValid
         // step 2: iteratively grow reaction system
         while (!allTerminated || !allValid) {
+        	
+        	//***********222*********%%  	
             while (!allValid) {
+            	
+            	
+            	//***********333*********%% prune edge species
+            	
                 // writeCoreSpecies();
                 double pt = System.currentTimeMillis();
                 // Grab all species from primary kinetics / reaction libraries
@@ -1527,10 +1580,18 @@ public class ReactionModelGenerator {
                 garbageCollect();
                 // System.out.println("After pruning:");
                 // printModelSize();
+                
+                
+              //***********333*********%% enlarge the reaction model
+                
                 // ENLARGE THE MODEL!!! (this is where the good stuff happens)
                 enlargeReactionModel();
                 double totalEnlarger = (System.currentTimeMillis() - pt) / 1000 / 60;
                 // PDepNetwork.completeNetwork(reactionSystem.reactionModel.getSpeciesSet());
+                
+                
+              //***********333*********%% initialize PDepNetwork
+                
                 // 10/24/07 gmagoon: changed to use reactionSystemList
                 if ((reactionModelEnlarger instanceof RateBasedPDepRME)) {// 1/2/09 gmagoon and rwest: only call
 // initializePDepNetwork for P-dep cases
@@ -1541,6 +1602,10 @@ public class ReactionModelGenerator {
                     }
                     // reactionSystem.initializePDepNetwork();
                 }
+                
+                
+              //***********333*********%% print modelSize and memUsage and write into chemkin file
+                
                 printModelSize();
                 // Write Chemkin input file only for the LAST reaction system (preserving old behaviour from when it
 // used to be overwritten N times).
@@ -1551,6 +1616,11 @@ public class ReactionModelGenerator {
                         +(System.currentTimeMillis() - Global.tAtInitialization) / 1000. / 60.));
                 printMemoryUsed();
                 Logger.flush();
+                
+                
+                
+              //***********333*********%% reset systenSnapshot to initialStatus
+                
                 pt = System.currentTimeMillis();
                 // 10/24/07 gmagoon: changed to use reactionSystemList
                 for (Iterator iter = reactionSystemList.iterator(); iter
@@ -1560,6 +1630,10 @@ public class ReactionModelGenerator {
                 }
                 // reactionSystem.resetSystemSnapshot();
                 double resetSystem = (System.currentTimeMillis() - pt) / 1000 / 60;
+                
+                
+              //***********333*********%% update rxnChangedList, beginList, endList,currentTList, currentPList, conditionChangedList
+                
                 // 10/24/07 gmagoon: changed to use reactionSystemList
                 for (Integer i = 0; i < reactionSystemList.size(); i++) {
                     // reactionChanged = true;
@@ -1601,6 +1675,12 @@ public class ReactionModelGenerator {
                     // currentP = reactionSystem.getPressure(begin);
                     // conditionChanged = (!currentT.equals(lastT) || !currentP.equals(lastP));
                 }
+                
+                
+              //***********333*********%% solve each reaction system again 
+                				     //%% using updated begin, end, initialization, rxnChanged, conditionChanged and iterationNum
+                					 //%% and accumulate the dynamic simulation time
+                
                 iterationNumber = 1;
                 double startTime = System.currentTimeMillis();
                 // 10/24/07 gmagoon: changed to use reactionSystemList
@@ -1621,6 +1701,10 @@ public class ReactionModelGenerator {
                 }
                 solverMin = solverMin
                         + (System.currentTimeMillis() - startTime) / 1000 / 60;
+                
+                
+              //***********333*********%% writeDictionary and restartConditionFile
+                
                 startTime = System.currentTimeMillis();
                 // 9/1/09 gmagoon: if we are using QM, output a file with the CHEMKIN name, the RMG name, the (modified)
 // InChI, and the (modified) InChIKey
@@ -1652,6 +1736,10 @@ public class ReactionModelGenerator {
                      */
                     removeBackupRestartFiles(restartFiles);
                 }
+                
+                
+              //***********333*********%% print for each reaction system the conversion after dynSimulation 
+                
                 // 10/24/07 gmagoon: changed to use reactionSystemList
                 Logger.info("");
                 for (Integer i = 0; i < reactionSystemList.size(); i++) {
@@ -1667,16 +1755,24 @@ public class ReactionModelGenerator {
                     double conv = rs.getPresentConversion(spe);
                     Logger.info(String.format("Conversion of %s is: %-10.4g",
                             spe.getFullName(), conv));
+                    currentConvList.set(i, conv);
                 }
+                
+              //***********333*********%% get memory usage
+                
                 Logger.info("");
                 startTime = System.currentTimeMillis();
                 double mU = Runtime.getRuntime().totalMemory()
                         - Runtime.getRuntime().freeMemory();
                 Logger.info("");
                 double gc = (System.currentTimeMillis() - startTime) / 1000. / 60.;
+                
+                
+              //***********333*********%% update the validList and accumulate the validTesting time
+                
                 startTime = System.currentTimeMillis();
                 // 10/24/07 gmagoon: updating to use reactionSystemList
-                allValid = true;
+                allValid = true; 
                 for (Integer i = 0; i < reactionSystemList.size(); i++) {
                     ReactionSystem rs = (ReactionSystem) reactionSystemList
                             .get(i);
@@ -1685,12 +1781,15 @@ public class ReactionModelGenerator {
                         allValid = false;
                     validList.set(i, valid);
                     // valid = reactionSystem.isModelValid();
-                }
+                }                
+                             
                 vTester = vTester + (System.currentTimeMillis() - startTime)
                         / 1000 / 60;
+                
+                
+              //***********333*********%% write diagonostic info and enlarger info which are excel files 
+                
                 startTime = System.currentTimeMillis();
-                writeDiagnosticInfo();
-                writeEnlargerInfo();
                 double restart2 = (System.currentTimeMillis() - startTime) / 1000 / 60;
                 int allSpecies, allReactions;
                 allSpecies = SpeciesDictionary.getInstance().size();
@@ -1746,12 +1845,30 @@ public class ReactionModelGenerator {
                                 + Global.checkReactionReverse + "\t"
                                 + Global.makeTR + "\t"
                                 + Global.getReacFromStruc + "\t"
-                                + Global.generateReverse + "\n");
+                                + Global.generateReverse + "\t");
+                for (Integer i = 0; i < reactionSystemList.size(); i++) {
+                	print_info.append(currentConvList.get(i) + "\t");
+                }
+                print_info.append("\n");
+                
+                writeDiagnosticInfo();
+                writeEnlargerInfo();
             }
+            
+            
+          //***********222*********%% at this point all the reaction systems should be valid, but does possibly not satisfy the terminiation criterion
+            					 //%% if user requests to do intermediateSteps            
+            
+            
             // 5/6/08 gmagoon: in order to handle cases where no intermediate time/conversion steps are used, only
 // evaluate the next block of code when there are intermediate time/conversion steps
             double startTime = System.currentTimeMillis();
             if (intermediateSteps) {
+            	
+            	
+            	//***********333*********%% update the rxnChangedList, lastTList, lastPList, currentTList, currentPList, conditionChangedList
+            						   //%% beginList, endList
+            	
                 for (Integer i = 0; i < reactionSystemList.size(); i++) {
                     ReactionSystem rs = (ReactionSystem) reactionSystemList
                             .get(i);
@@ -1765,7 +1882,7 @@ public class ReactionModelGenerator {
                     // lastP = (Pressure)currentP.clone();
                     currentTList.set(i,
                             rs.getTemperature((ReactionTime) beginList.get(i)));// 10/24/07 gmagoon: ****I think this
-// should actually be at end? (it shouldn't matter for isothermal/isobaric case)
+// should actually be at end? (it shouldn't matter for isothermal/isobaric case)// 10/18/13 kehang: same opinion with gmagoon, should be at end
                     currentPList.set(i,
                             rs.getPressure((ReactionTime) beginList.get(i)));
                     conditionChangedList
@@ -1799,6 +1916,11 @@ public class ReactionModelGenerator {
                         endList.set(i, new ReactionTime(1e6, "sec"));
                     // end = new ReactionTime(1e6,"sec");
                 }
+                
+                
+                
+              //***********333*********%% update iterationNum and solve each reaction system
+                
                 iterationNumber++;
                 startTime = System.currentTimeMillis();// 5/6/08 gmagoon: moved declaration outside of if statement so
 // it can be accessed in subsequent vTester line; previous steps are probably so fast that I could eliminate this line
@@ -1819,8 +1941,15 @@ public class ReactionModelGenerator {
                     // end = reactionSystem.solveReactionSystem(begin, end, false, reactionChanged, false,
 // iterationNumber-1);
                 }
+                
+                
+              //***********333*********%% accumulate the solving time
+                
                 solverMin = solverMin
                         + (System.currentTimeMillis() - startTime) / 1000 / 60;
+                
+                
+              //***********333*********%% update the validList
                 startTime = System.currentTimeMillis();
                 // 5/6/08 gmagoon: changed to separate validity and termination testing, and termination testing is done
 // last...termination testing should be done even if there are no intermediate conversions; however, validity is
@@ -1834,16 +1963,22 @@ public class ReactionModelGenerator {
                     if (!valid)
                         allValid = false;
                 }
-            }// 5/6/08 gmagoon: end of block for intermediateSteps
+
+            }// ends of if(intermediateSteps)
+            
+            vTester = vTester + (System.currentTimeMillis() - startTime) / 1000
+                    / 60;            
+            
+          //***********222*********%% at this point we've made all the reaction systems move forward one step
+			 //%% update terminatedList
+            
             allTerminated = true;
             for (Integer i = 0; i < reactionSystemList.size(); i++) {
                 ReactionSystem rs = (ReactionSystem) reactionSystemList.get(i);
-                boolean terminated = rs.isReactionTerminated();
+                boolean terminated = rs.isReactionTerminated(); 
                 terminatedList.set(i, terminated);
                 if (!terminated) {
-                    allTerminated = false;
-                    Logger.error("Reaction System " + (i + 1)
-                            + " has not reached its termination criterion");
+                    allTerminated = false;  
                     if (rs.isModelValid()
                             && runKillableToPreventInfiniteLoop(
                                     intermediateSteps, iterationNumber)) {
@@ -1854,15 +1989,36 @@ public class ReactionModelGenerator {
                     }
                 }
             }
+            
+        }
+        
+      //********************%% done the reaction model growth job!
+        				  //%% double check allTerminated and allValid
+                    
+            
+            
+            // 5/6/08 gmagoon: end of block for intermediateSteps
+            allTerminated = true;
+            for (Integer i = 0; i < reactionSystemList.size(); i++) {
+                ReactionSystem rs = (ReactionSystem) reactionSystemList.get(i);
+                boolean terminated = rs.isReactionTerminated(); 
+                terminatedList.set(i, terminated);
+                if (!terminated) {
+                    allTerminated = false;
+                    Logger.error("Reaction System " + (i + 1)
+                            + " has not reached its termination criterion");
+                    
+                }
+            }
             // 10/24/07 gmagoon: changed to use reactionSystemList, allValid
             if (allValid) {
                 Logger.info("Model generation completed!");
                 printModelSize();
             }
-            vTester = vTester + (System.currentTimeMillis() - startTime) / 1000
-                    / 60;// 5/6/08 gmagoon: for case where intermediateSteps = false, this will use startTime declared
+           // vTester = vTester + (System.currentTimeMillis() - startTime) / 1000
+            //        / 60;// 5/6/08 gmagoon: for case where intermediateSteps = false, this will use startTime declared
 // just before intermediateSteps loop, and will only include termination testing, but no validity testing
-        }
+        //}
         // always write this, even if not saving other restart files
         writeRestartConditionFile();
         // System.out.println("Performing model reduction");
