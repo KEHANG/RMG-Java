@@ -1,0 +1,17 @@
+Unit:
+A: mol/cm3/s
+E: cal/mol
+
+Reactions:
+//!Wang&Frenklach 2000
+C6H5 + H (+m) <=> benzene (+m) 1E14 0.0 0.0  	0.0	0.0	0.0
+   LOW/ 6.6E75  -16.3  7000./
+   TROE/ 1.0 0.1 585 6113/
+//!Wang&Frenklach 2000
+C6H5 (+m) <=> C6H4 + H (+m) 4.3E12  0.62  77300.0 	0.0	0.0	0.0
+   LOW/ 1.0E84  -18.87  90100.0/
+   TROE/ 0.902  696  358  3856/
+//!Wang 27 !Their estimate
+C6H5O + H (+m) <=> C6H5OH (+m) 1.0E14  0.0  0.0 	0.0	0.0	0.0
+   LOW /1.0E94  -21.84 13900./ 
+   TROE /0.043 304 60000 5896/

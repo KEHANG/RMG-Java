@@ -1,0 +1,1 @@
+This is a Thermo Lib direct from GRI 3.0, AND ADD WHAT IS UNIQUE IN ERFC-CH4-oxidization except the activated radicals like CH* and OH*.

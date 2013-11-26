@@ -1,0 +1,27 @@
+Unit:
+A: mol/cm3/s
+E: cal/mol
+
+Reactions:
+
+// Keto-Enol Tautomerization reactions by Da Silva
+C4H8O-enol <=> nC4H8O         	8.590e+11 	 0.32 	 55900.00  0.0	0.0	0.0
+
+C4H8O-i2 <=> C4H8O-i3         	8.590e+11 	 0.32 	 55900.00  0.0	0.0	0.0
+
+C2H4O <=> CH3CHO              	8.590e+11 	 0.32 	 55900.00  0.0	0.0	0.0
+
+C3H6O-enol <=> C3H6O          	8.590e+11 	 0.32 	 55900.00  0.0	0.0	0.0
+
+H2CCCH3[OH] <=> acetone       	8.590e+11 	 0.32 	 55900.00  0.0	0.0	0.0
+
+// Keto-Enol Tautomerization by acid by Da Silva
+C2H4O + HCOOH = CH3CHO + HCOOH              2.81E-02  3.286  -4509 0.0	0.0	0.0
+
+C4H8O-enol + HCOOH = nC4H8O + HCOOH         2.81E-02  3.286  -4509 0.0	0.0	0.0
+
+C4H8O-i2 + HCOOH = C4H8O-i3 + HCOOH         2.81E-02  3.286  -4509 0.0	0.0	0.0
+
+H2CCCH3[OH] + HCOOH = acetone + HCOOH       2.81E-02  3.286  -4509 0.0	0.0	0.0
+
+C2H3O-1 + HCOOH = CH2CHO + HCOOH            2.81E-02  3.286  -4509 0.0	0.0	0.0
