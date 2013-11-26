@@ -102,7 +102,7 @@ public class RateBasedPDepRME implements ReactionModelEnlarger {
      *            A boolean list of the validity status of each reaction system
      */
     public void enlargeReactionModel(LinkedList rxnSystemList,
-            ReactionModel rm, LinkedList validList) {
+            ReactionModel rm, LinkedList validList, double beta) {
         CoreEdgeReactionModel cerm = (CoreEdgeReactionModel) rm;
         // Lists of species to add to the core or to explore in PDepNetworks
         // These lists will be of the same length as rxnSystemList, and will
@@ -179,7 +179,7 @@ public class RateBasedPDepRME implements ReactionModelEnlarger {
             LinkedList topSpeciesSubList = new LinkedList();
             LinkedList topFluxSubList = new LinkedList();
             //double[] topFluxSubArray;
-            double thrshold = 0.9*Rmin;
+            double thrshold = beta*Rmin;
             //////hkh12
             
             
@@ -284,7 +284,7 @@ public class RateBasedPDepRME implements ReactionModelEnlarger {
         int coreUpdateNum = coreUpdateList.size();
         int leakUpdateNum = leakUpdateList.size();
 
-        for (int indx = leakUpdateNum-1; indx < leakUpdateNum; --indx){
+        for (int indx = leakUpdateNum-1; indx >= 0; --indx){
         	if (coreUpdateList.contains(leakUpdateList.get(indx))){
         		leakUpdateList.remove(indx);
         	}
@@ -392,6 +392,9 @@ public class RateBasedPDepRME implements ReactionModelEnlarger {
                         + " with the core.");
                 // At this point the core (cerm.getReactedSpeciesSet()) already contains maxSpecies, so we can just
 // react the entire core.
+                
+                
+                //generate core rxns from 0, rather than append, but not really matter because only for situation of rxnLibrary
                 LinkedHashSet newReactionSet = rxnSystem
                         .getLibraryReactionGenerator().react(
                                 cerm.getReactedSpeciesSet());

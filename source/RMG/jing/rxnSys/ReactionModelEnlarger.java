@@ -38,7 +38,7 @@ public interface ReactionModelEnlarger {
     // 9/25/07 gmagoon: added ReactionModel parameter
     // 10/24/07 gmagoon: changed to use reactionSystemList and use validList
     void enlargeReactionModel(LinkedList p_reactionSystemList,
-            ReactionModel rm, LinkedList p_validList);
+            ReactionModel rm, LinkedList p_validList, double beta);
 }
 /*********************************************************************
  * File Path : RMG\RMG\jing\rxnSys\ReactionModelEnlarger.java

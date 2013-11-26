@@ -27,10 +27,13 @@
 package jing.rxnSys;
 
 import java.io.*;
+
 import jing.rxnSys.ReactionSystem;
 import jing.rxn.*;
 import jing.chem.*;
+
 import java.util.*;
+
 import jing.mathTool.UncertainDouble;
 import jing.param.*;
 import jing.chemUtil.*;
@@ -104,6 +107,9 @@ public class ReactionModelGenerator {
     protected static int maxEdgeSpeciesAfterPruning;
     public int limitingReactantID = 1;
     public int numberOfEquivalenceRatios = 0;
+    
+    
+    public double beta = 1.0;
 
     // ## operation ReactionModelGenerator()
     public ReactionModelGenerator() {
@@ -775,6 +781,28 @@ public class ReactionModelGenerator {
             } else
                 throw new InvalidSymbolException(
                         "condition.txt: can't find FinishController!");
+         // read in multiple addition
+            line = ChemParser.readMeaningfulLine(reader, true);
+            if (line.startsWith("MultipleAddition")) {
+                StringTokenizer st = new StringTokenizer(line);
+                String temp = st.nextToken();
+                temp = st.nextToken();
+                if (temp.startsWith("Beta")) {
+                	String betaStr = st.nextToken();
+                    try {                    
+                            beta = Double.parseDouble(betaStr);
+                    } catch (NumberFormatException e) {
+                        throw new NumberFormatException(
+                                "wrong number format for multiple addition beta in initial condition file!");
+                    }
+                } else {
+                    throw new InvalidSymbolException(
+                            "condition.txt: Unknown MultipleAddition = " + temp);
+                }
+                                
+            }
+            
+            
             // read in dynamic simulator
             line = ChemParser.readMeaningfulLine(reader, true);
             if (line.startsWith("DynamicSimulator")) {
@@ -1514,11 +1542,18 @@ public class ReactionModelGenerator {
         writeDictionary(getReactionModel());
         // System.exit(0);
         StringBuilder print_info = Global.diagnosticInfo;
+        //print_info.append("\nMolecule \t Flux\t\tTime\t \t\t \t Core \t \t Edge \t \t memory\n");
         print_info
-                .append("\nMolecule \t Flux\t\tTime\t \t\t \t Core \t \t Edge \t \t memory\n");
-        print_info
-                .append(" \t moleular \t characteristic \t findspecies \t moveUnreactedToReacted \t enlarger \t restart1 \t totalEnlarger \t resetSystem  \t readSolverFile\t writeSolverFile \t justSolver \t SolverIterations \t solverSpeciesStatus \t Totalsolver \t gc  \t restart+diagnosis \t chemkin thermo \t chemkin reactions \t validitytester \t Species \t Reactions\t Species\t Reactions \t memory used  \t allSpecies \t TotalTime \t findRateConstant\t identifyReactedSites \t reactChemGraph \t makespecies\t CheckReverseReaction \t makeTemplateReaction \t getReactionfromStruc \t genReverseFromReac");
-        print_info.append("\t\t\t\t\t\t\t"
+                .append("prunning \t totalEnlarger \t initPDep \t prSizeWriteChemkin \t resetSystem \t updtList \t solveThisTime \t writeDictRestartFile \t prConvGetMem \t vTesterThisTime \t readSolverFile\t writeSolverFile \t justSolver \t SolverIterations \t solverSpeciesStatus \t Totalsolver \t chemkin thermo \t chemkin reactions \t validitytester \t crSpecies \t crReactions\t egSpecies\t egReactions \t memory used  \t allSpecies \t TotalTime \t findRateConstant\t identifyReactedSites \t reactChemGraph \t makespecies\t CheckReverseReaction \t makeTemplateReaction \t getReactionfromStruc \t genReverseFromReac");
+        
+        for (Integer i = 0; i < reactionSystemList.size(); i++) {
+        	print_info.append("\t conversion of rxnSys " + i+1 + "\t");
+        }
+        print_info.append("\n");
+        print_info.append("0 \t 0 \t 0 \t 0 \t 0 \t 0 \t 0 \t 0 \t 0 \t 0 \t"
+        		+"0 \t 0 \t 0 \t 0 \t 0 \t 0 \t"
+        		+"0 \t 0 \t"
+        		+"0 \t"
                 + ((CoreEdgeReactionModel) getReactionModel())
                         .getReactedSpeciesSet().size()
                 + "\t"
@@ -1530,7 +1565,13 @@ public class ReactionModelGenerator {
                 + "\t"
                 + ((CoreEdgeReactionModel) getReactionModel())
                         .getUnreactedReactionSetIncludingReverseSize() + "\t"
-                + Global.makeSpecies + "\n");
+                +"0 \t 0 \t 0 \t 0 \t 0 \t 0 \t"
+                + Global.makeSpecies + "\t"
+        		+"0 \t 0 \t 0 \t 0 \t");
+        for (Integer i = 0; i < reactionSystemList.size(); i++) {
+        	print_info.append("0 \t");
+        }
+        print_info.append("\n");
         
         
       //********************%% LOOP for reaction model growth
@@ -1577,7 +1618,8 @@ public class ReactionModelGenerator {
                 }
                 // prune the reaction model (this will only do something in the AUTO case)
                 pruneReactionModel(unprunableSpecies);
-                garbageCollect();
+                garbageCollect();//help reuse the just set-free memory 
+                double prunning  = (System.currentTimeMillis() - pt) / 1000 / 60;
                 // System.out.println("After pruning:");
                 // printModelSize();
                 
@@ -1585,13 +1627,14 @@ public class ReactionModelGenerator {
               //***********333*********%% enlarge the reaction model
                 
                 // ENLARGE THE MODEL!!! (this is where the good stuff happens)
+                pt = System.currentTimeMillis();
                 enlargeReactionModel();
                 double totalEnlarger = (System.currentTimeMillis() - pt) / 1000 / 60;
                 // PDepNetwork.completeNetwork(reactionSystem.reactionModel.getSpeciesSet());
                 
                 
               //***********333*********%% initialize PDepNetwork
-                
+                pt = System.currentTimeMillis();
                 // 10/24/07 gmagoon: changed to use reactionSystemList
                 if ((reactionModelEnlarger instanceof RateBasedPDepRME)) {// 1/2/09 gmagoon and rwest: only call
 // initializePDepNetwork for P-dep cases
@@ -1602,10 +1645,10 @@ public class ReactionModelGenerator {
                     }
                     // reactionSystem.initializePDepNetwork();
                 }
-                
+                double initPDep = (System.currentTimeMillis() - pt) / 1000 / 60;
                 
               //***********333*********%% print modelSize and memUsage and write into chemkin file
-                
+                pt = System.currentTimeMillis();
                 printModelSize();
                 // Write Chemkin input file only for the LAST reaction system (preserving old behaviour from when it
 // used to be overwritten N times).
@@ -1616,7 +1659,7 @@ public class ReactionModelGenerator {
                         +(System.currentTimeMillis() - Global.tAtInitialization) / 1000. / 60.));
                 printMemoryUsed();
                 Logger.flush();
-                
+                double prSizeWriteChemkin = (System.currentTimeMillis() - pt) / 1000 / 60;
                 
                 
               //***********333*********%% reset systenSnapshot to initialStatus
@@ -1633,7 +1676,7 @@ public class ReactionModelGenerator {
                 
                 
               //***********333*********%% update rxnChangedList, beginList, endList,currentTList, currentPList, conditionChangedList
-                
+                pt = System.currentTimeMillis();
                 // 10/24/07 gmagoon: changed to use reactionSystemList
                 for (Integer i = 0; i < reactionSystemList.size(); i++) {
                     // reactionChanged = true;
@@ -1675,7 +1718,7 @@ public class ReactionModelGenerator {
                     // currentP = reactionSystem.getPressure(begin);
                     // conditionChanged = (!currentT.equals(lastT) || !currentP.equals(lastP));
                 }
-                
+                double updtList = (System.currentTimeMillis() - pt) / 1000 / 60;
                 
               //***********333*********%% solve each reaction system again 
                 				     //%% using updated begin, end, initialization, rxnChanged, conditionChanged and iterationNum
@@ -1699,6 +1742,8 @@ public class ReactionModelGenerator {
                     // end = reactionSystem.solveReactionSystem(begin, end, false, reactionChanged, conditionChanged,
 // iterationNumber-1);
                 }
+                
+                double solveThisTime = (System.currentTimeMillis() - startTime) / 1000 / 60;
                 solverMin = solverMin
                         + (System.currentTimeMillis() - startTime) / 1000 / 60;
                 
@@ -1712,7 +1757,7 @@ public class ReactionModelGenerator {
                     writeInChIs(getReactionModel());
                 }
                 writeDictionary(getReactionModel());
-                double chemkint = (System.currentTimeMillis() - startTime) / 1000 / 60;
+
                 // this is cheap to do, so do it even if not saving other restart files
                 writeRestartConditionFile();
                 if (writerestart) {
@@ -1736,11 +1781,12 @@ public class ReactionModelGenerator {
                      */
                     removeBackupRestartFiles(restartFiles);
                 }
-                
+                double writeDictRestartFile = (System.currentTimeMillis() - startTime) / 1000 / 60;
                 
               //***********333*********%% print for each reaction system the conversion after dynSimulation 
                 
                 // 10/24/07 gmagoon: changed to use reactionSystemList
+                startTime = System.currentTimeMillis();
                 Logger.info("");
                 for (Integer i = 0; i < reactionSystemList.size(); i++) {
                     ReactionSystem rs = (ReactionSystem) reactionSystemList
@@ -1761,15 +1807,14 @@ public class ReactionModelGenerator {
               //***********333*********%% get memory usage
                 
                 Logger.info("");
-                startTime = System.currentTimeMillis();
+//                startTime = System.currentTimeMillis();
                 double mU = Runtime.getRuntime().totalMemory()
                         - Runtime.getRuntime().freeMemory();
                 Logger.info("");
-                double gc = (System.currentTimeMillis() - startTime) / 1000. / 60.;
+                double prConvGetMem = (System.currentTimeMillis() - startTime) / 1000. / 60.;
                 
                 
-              //***********333*********%% update the validList and accumulate the validTesting time
-                
+              //***********333*********%% update the validList and accumulate the validTesting time                
                 startTime = System.currentTimeMillis();
                 // 10/24/07 gmagoon: updating to use reactionSystemList
                 allValid = true; 
@@ -1782,21 +1827,38 @@ public class ReactionModelGenerator {
                     validList.set(i, valid);
                     // valid = reactionSystem.isModelValid();
                 }                
-                             
+                
+                double vTesterThisTime = (System.currentTimeMillis() - startTime) / 1000. / 60.;
                 vTester = vTester + (System.currentTimeMillis() - startTime)
                         / 1000 / 60;
                 
                 
               //***********333*********%% write diagonostic info and enlarger info which are excel files 
                 
-                startTime = System.currentTimeMillis();
-                double restart2 = (System.currentTimeMillis() - startTime) / 1000 / 60;
+                //startTime = System.currentTimeMillis();
+                //double restart2 = (System.currentTimeMillis() - startTime) / 1000 / 60;
                 int allSpecies, allReactions;
                 allSpecies = SpeciesDictionary.getInstance().size();
                 print_info
-                        .append(totalEnlarger
+                        .append(prunning
+                                + "\t"
+                        		+ totalEnlarger
+                                + "\t"
+                                + initPDep                                
+                                + "\t"
+                                + prSizeWriteChemkin
                                 + "\t"
                                 + resetSystem
+                                + "\t"
+                                + updtList
+                                + "\t"
+                                + solveThisTime
+                                + "\t"
+                                + writeDictRestartFile
+                                + "\t"
+                                + prConvGetMem
+                                + "\t"
+                                + vTesterThisTime
                                 + "\t"
                                 + Global.readSolverFile
                                 + "\t"
@@ -1809,10 +1871,6 @@ public class ReactionModelGenerator {
                                 + Global.speciesStatusGenerator
                                 + "\t"
                                 + solverMin
-                                + "\t"
-                                + gc
-                                + "\t"
-                                + restart2
                                 + "\t"
                                 + Global.chemkinThermo
                                 + '\t'
@@ -1853,7 +1911,7 @@ public class ReactionModelGenerator {
                 
                 writeDiagnosticInfo();
                 writeEnlargerInfo();
-            }
+            }// end of while(!allValid == true)
             
             
           //***********222*********%% at this point all the reaction systems should be valid, but does possibly not satisfy the terminiation criterion
@@ -1990,7 +2048,7 @@ public class ReactionModelGenerator {
                 }
             }
             
-        }
+        }// end of while (!allTerminated == ture || !allValid == true)
         
       //********************%% done the reaction model growth job!
         				  //%% double check allTerminated and allValid
@@ -4235,7 +4293,7 @@ public class ReactionModelGenerator {
         Logger.info("");
         Logger.info("Enlarging reaction model");
         reactionModelEnlarger.enlargeReactionModel(reactionSystemList,
-                reactionModel, validList);
+                reactionModel, validList, beta);
         return;
         // #]
     }

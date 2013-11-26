@@ -45,18 +45,10 @@ public class RateBasedRME implements ReactionModelEnlarger {
     public RateBasedRME() {
     }
 
-    // 9/25/07 gmagoon: added ReactionModel parameter
-    // 10/30/07 gmagoon: updated parameters to match ReactionModelEnlarger
-    // ## operation enlargeReactionModel(ReactionSystem)
-    public void enlargeReactionModel(LinkedList p_reactionSystemList,
-            ReactionModel rm, LinkedList p_validList) {
-        // public void enlargeReactionModel(ReactionSystem p_reactionSystem, ReactionModel rm)
-        // #[ operation enlargeReactionModel(ReactionSystem)
-        // ReactionModel rm = p_reactionSystem.getReactionModel();
-        if (!(rm instanceof CoreEdgeReactionModel))
+    public void enlargeReactionModel(LinkedList p_reactionSystemList,ReactionModel rm, LinkedList p_validList, double beta) {
+    	if (!(rm instanceof CoreEdgeReactionModel))
             throw new InvalidReactionModelTypeException();
         CoreEdgeReactionModel cerm = (CoreEdgeReactionModel) rm;
-        // 10/30/07 gmagoon: iterate over reaction systems that are not valid
         LinkedList nextList = new LinkedList();
         double startTime = System.currentTimeMillis();
         for (Integer i = 0; i < p_reactionSystemList.size(); i++) {
@@ -64,35 +56,24 @@ public class RateBasedRME implements ReactionModelEnlarger {
                 PresentStatus ps = ((ReactionSystem) p_reactionSystemList
                         .get(i)).getPresentStatus();
                 String maxflux = "";
-                Species next = getNextCandidateSpecies(cerm, ps, maxflux);
+                Species next = getNextCandidateSpecies(cerm, ps, maxflux);// FIND OUT THE NEXT CANDIDATE FOR EACH REACTION SYSTEM
                 nextList.add(next);
             } else {
-                nextList.add(null);// ****hopefully, null will contribute to length of list; otherwise, modifications
-// will be needed
+                nextList.add(null);
             }
         }
         // generate new reaction set
-        /*
-         * startTime = System.currentTimeMillis(); LinkedHashSet newReactionSet =
-         * p_reactionSystem.lrg.react(cerm.getReactedSpeciesSet(),next);
-         * newReactionSet.addAll(p_reactionSystem.getReactionGenerator().react(cerm.getReactedSpeciesSet(),next));
-         * double enlargeTime = (System.currentTimeMillis()-startTime)/1000/60;
-         */
         startTime = System.currentTimeMillis();
-        // 10/30/07 gmagoon: add species from nextList
         for (Integer i = 0; i < p_reactionSystemList.size(); i++) {
             if (!(Boolean) p_validList.get(i)) {
                 Species newCoreSpecies = (Species) nextList.get(i);
-                if (cerm.containsAsReactedSpecies(newCoreSpecies)) // throw new InvalidNextCandidateSpeciesException();
+                if (cerm.containsAsReactedSpecies(newCoreSpecies)) 
                 {
                     Logger.warning("Tried to add species "
                             + newCoreSpecies.getFullName()
                             + ", but is already present in reaction model (this should be OK if you are running multiple reaction conditions)");
-                } else {
+                } else {// for the reaction systems that needs to contain newCoreSpecies in core area
                     double findSpeciesTime = (System.currentTimeMillis() - startTime) / 1000 / 60;
-                    // Global.diagnosticInfo.append(next.getChemkinName() + "\t" + maxflux + "\t" + ((RateBasedVT)
-// ((ReactionSystem) p_reactionSystemList.get(i)).finishController.validityTester).Rmin + "\t" + findSpeciesTime +
-// "\t");
                     Logger.info("\nAdd a new species to the model core: "
                             + newCoreSpecies.getFullName());
                     Temperature temp = new Temperature(298, "K");
