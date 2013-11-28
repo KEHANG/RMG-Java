@@ -789,12 +789,19 @@ public class ReactionModelGenerator {
                 temp = st.nextToken();
                 if (temp.startsWith("Beta")) {
                 	String betaStr = st.nextToken();
-                    try {                    
+                	if (betaStr.startsWith("max")){
+                		beta = 2.0;
+                	}
+                	else {
+                		try {                    
                             beta = Double.parseDouble(betaStr);
-                    } catch (NumberFormatException e) {
+                		} catch (NumberFormatException e) {
                         throw new NumberFormatException(
                                 "wrong number format for multiple addition beta in initial condition file!");
-                    }
+                		}
+                	}
+                                        
+                    
                 } else {
                     throw new InvalidSymbolException(
                             "condition.txt: Unknown MultipleAddition = " + temp);

@@ -31,6 +31,7 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.StringTokenizer;
+
 import jing.chem.Species;
 import jing.param.Temperature;
 import jing.rxn.FastMasterEqn;
@@ -118,168 +119,257 @@ public class RateBasedPDepRME implements ReactionModelEnlarger {
         LinkedList leakUpdateList = new LinkedList();
         
         
-        
-        // Iterate over reaction systems, enlarging each individually
-        for (int i = 0; i < rxnSystemList.size(); i++) {
-            Logger.info(String.format("Reaction system %d of %d", i + 1,
-                    rxnSystemList.size()));
-            
-            //*************%% no need to enlarge if already valid and directly continue
-            
-            
-            // Don't need to enlarge if the system is already valid
-            if ((Boolean) validList.get(i)) {
-                coreUpdateList.add(null);
-                leakUpdateList.add(null);
-                Logger.info("Model is valid");
-                continue;
-            }
-            
-            
-            //*************%% if not valid, get one rxnSys AND its: 
-            			 //%% present status, Rmin, egSpecies + crSpecies
-            
-            
-            ReactionSystem rxnSystem = (ReactionSystem) rxnSystemList.get(i);
-            PresentStatus ps = rxnSystem.getPresentStatus();
-            // Get Rmin
-            double Rmin = rxnSystem.getRmin();
-            // Determine flux of all species (combining both pDep and non-pDep systems)
-            int len = cerm.getMaxSpeciesID() + 1;// total num of reacted and unreacted species
-            double[] flux = new double[len];
-            for (int n = 0; n < len; n++)
-                flux[n] = 0.0;
-            
-            //*************%% get fluxes from non-pDep  and P-dep reactions
-            
-            // Flux from non-pDep and P-dep reactions
-            double[] unreactedSpeciesFlux = ps.getUnreactedSpeciesFlux();// unreacted species flux includes flux from
-// both p-dep and non-pdep rxns: cf. appendUnreactedSpeciesStatus in ReactionSystem
-            for (Iterator iter = cerm.getUnreactedSpeciesSet().iterator(); iter
-                    .hasNext();) {
-                Species us = (Species) iter.next();
-                if (us.getID() < unreactedSpeciesFlux.length) //??
-                    flux[us.getID()] = unreactedSpeciesFlux[us.getID()];
-                else
-                    Logger.warning("Attempted to read unreacted species flux for "
-                            + us.getName()
-                            + "("
-                            + us.getID()
-                            + "), but there are only "
-                            + unreactedSpeciesFlux.length + " fluxes.");
-            }
-            
-            
-            // Determine species with maximum flux and its flux
-            Species maxSpecies = null;
-            double maxFlux = 0;
-            
-            
-            //////hkh12
-            LinkedList topSpeciesSubList = new LinkedList();
-            LinkedList topFluxSubList = new LinkedList();
-            //double[] topFluxSubArray;
-            double thrshold = beta*Rmin;
-            //////hkh12
-            
-            
-            for (Iterator iter = cerm.getUnreactedSpeciesSet().iterator(); iter
-                    .hasNext();) {
-                Species us = (Species) iter.next();
-                if (Math.abs(flux[us.getID()]) >= maxFlux) {
-                    maxFlux = Math.abs(flux[us.getID()]);
-                    maxSpecies = us;
+        if (beta <= 1 && beta > 0){
+        	// Iterate over reaction systems, enlarging each individually
+            for (int i = 0; i < rxnSystemList.size(); i++) {
+                Logger.info(String.format("Reaction system %d of %d", i + 1,
+                        rxnSystemList.size()));
+                
+                //*************%% no need to enlarge if already valid and directly continue
+                
+                
+                // Don't need to enlarge if the system is already valid
+                if ((Boolean) validList.get(i)) {
+                    coreUpdateList.add(null);
+                    leakUpdateList.add(null);
+                    Logger.info("Model is valid");
+                    continue;
                 }
                 
-          //////hkh12
-                if (Math.abs(flux[us.getID()]) >= thrshold){
-                	topSpeciesSubList.add(us);
-                	topFluxSubList.add(Math.abs(flux[us.getID()]));
-                }
-          //////hkh12
                 
-            }
-            if (maxSpecies == null)
-                throw new NullPointerException();
-            
-            
-            // Determine species with maximum leak flux and its flux
-            Species maxLeakSpecies = null;
-            double maxLeakFlux = 0;
-            
-            //////hkh12
-            LinkedList topLeakSpeciesSubList = new LinkedList();
-            LinkedList topLeakFluxSubList = new LinkedList();
-            //////hkh12
-            
-            double[] leakFlux = PDepNetwork.getSpeciesLeakFluxes(ps, cerm);
-            for (Iterator iter = cerm.getUnreactedSpeciesSet().iterator(); iter
-                    .hasNext();) {
-                Species us = (Species) iter.next();
-                if (Math.abs(leakFlux[us.getID()]) >= maxLeakFlux) {
-                    maxLeakFlux = Math.abs(leakFlux[us.getID()]);
-                    maxLeakSpecies = us;
+                //*************%% if not valid, get one rxnSys AND its: 
+                			 //%% present status, Rmin, egSpecies + crSpecies
+                
+                
+                ReactionSystem rxnSystem = (ReactionSystem) rxnSystemList.get(i);
+                PresentStatus ps = rxnSystem.getPresentStatus();
+                // Get Rmin
+                double Rmin = rxnSystem.getRmin();
+                // Determine flux of all species (combining both pDep and non-pDep systems)
+                int len = cerm.getMaxSpeciesID() + 1;// total num of reacted and unreacted species
+                double[] flux = new double[len];
+                for (int n = 0; n < len; n++)
+                    flux[n] = 0.0;
+                
+                //*************%% get fluxes from non-pDep  and P-dep reactions
+                
+                // Flux from non-pDep and P-dep reactions
+                double[] unreactedSpeciesFlux = ps.getUnreactedSpeciesFlux();// unreacted species flux includes flux from
+    // both p-dep and non-pdep rxns: cf. appendUnreactedSpeciesStatus in ReactionSystem
+                for (Iterator iter = cerm.getUnreactedSpeciesSet().iterator(); iter
+                        .hasNext();) {
+                    Species us = (Species) iter.next();
+                    if (us.getID() < unreactedSpeciesFlux.length) //??
+                        flux[us.getID()] = unreactedSpeciesFlux[us.getID()];
+                    else
+                        Logger.warning("Attempted to read unreacted species flux for "
+                                + us.getName()
+                                + "("
+                                + us.getID()
+                                + "), but there are only "
+                                + unreactedSpeciesFlux.length + " fluxes.");
                 }
+                
+                
+                // Determine species with maximum flux and its flux
+                //Species maxSpecies = null;
+                //double maxFlux = 0;
+                
                 
                 //////hkh12
-                if (Math.abs(leakFlux[us.getID()]) >= thrshold){
-                	topLeakSpeciesSubList.add(us);
-                	topLeakFluxSubList.add(Math.abs(leakFlux[us.getID()]));
-                }
+                LinkedList topSpeciesSubList = new LinkedList();
+                LinkedList topFluxSubList = new LinkedList();
+                //double[] topFluxSubArray;
+                
+                double thrshold = beta*Rmin;
                 //////hkh12
                 
-            }
-            if (maxLeakSpecies == null)
-                throw new NullPointerException();
-            
-            
-           
-                       
-            //////hkh12
-            //output topSpecies and their fluxes, as well as topLeakSpecies with their fluxes
-            //also add them to updatelists
+                
+                for (Iterator iter = cerm.getUnreactedSpeciesSet().iterator(); iter
+                        .hasNext();) {
+                    Species us = (Species) iter.next();
+                   // if (Math.abs(flux[us.getID()]) >= maxFlux) {
+                   //     maxFlux = Math.abs(flux[us.getID()]);
+                   //     maxSpecies = us;
+                    //}
+                    
+              //////hkh12
+                    if (Math.abs(flux[us.getID()]) >= thrshold){
+                    	topSpeciesSubList.add(us);
+                    	topFluxSubList.add(Math.abs(flux[us.getID()]));
+                    }
+              //////hkh12
+                    
+                }
+                //if (maxSpecies == null)
+                   // throw new NullPointerException();
+                
+                
+                // Determine species with maximum leak flux and its flux
+                //Species maxLeakSpecies = null;
+                //double maxLeakFlux = 0;
+                
+                //////hkh12
+                LinkedList topLeakSpeciesSubList = new LinkedList();
+                LinkedList topLeakFluxSubList = new LinkedList();
+                //////hkh12
+                
+                double[] leakFlux = PDepNetwork.getSpeciesLeakFluxes(ps, cerm);
+                for (Iterator iter = cerm.getUnreactedSpeciesSet().iterator(); iter
+                        .hasNext();) {
+                    Species us = (Species) iter.next();
+                   // if (Math.abs(leakFlux[us.getID()]) >= maxLeakFlux) {
+                   //     maxLeakFlux = Math.abs(leakFlux[us.getID()]);
+                    //    maxLeakSpecies = us;
+                   // }
+                    
+                    //////hkh12
+                    if (Math.abs(leakFlux[us.getID()]) >= thrshold){
+                    	topLeakSpeciesSubList.add(us);
+                    	topLeakFluxSubList.add(Math.abs(leakFlux[us.getID()]));
+                    }
+                    //////hkh12
+                    
+                }
+               // if (maxLeakSpecies == null)
+                 //   throw new NullPointerException();
+                
+                
+               
+                           
+                //////hkh12
+                //output topSpecies and their fluxes, as well as topLeakSpecies with their fluxes
+                //also add them to updatelists
 
-            Logger.info(String.format("Time: %10.4e s", ps.getTime().getTime()));
-            Logger.info(String.format("Rmin: %10.4e mol/cm^3*s", Rmin));
-            Logger.info("***********************Going to add Top EdgeSpecies******************************");
-            int topSpeciesNum = topSpeciesSubList.size();
-            Logger.info(String.format("Totally we have %d top edge species with fluxes larger than %.4f Rmin", topSpeciesNum, thrshold / Rmin));
-            for (int indx = 0; indx < topSpeciesNum; ++indx) {
-            	Species topSpecies = (Species) topSpeciesSubList.get(indx);
-            	//double topFlux = (double) topFluxSubList.get(indx);
-                Logger.info(String
-                        .format("Edge species %s will be moved to the core and has top flux: %10.4e mol/cm^3*s (Rmin: %10.4e mol/cm^3*s)",
-                                topSpecies.getFullName(), topFluxSubList.get(indx), Rmin));
-                if (!coreUpdateList.contains(topSpecies))
-                    coreUpdateList.add(topSpecies);
-            }
-            Logger.info("***********************Going to add Top LeakSpecies******************************");
-            int topLeakSpeciesNum = topLeakSpeciesSubList.size();
-            Logger.info(String.format("Totally we have %d top leak species with fluxes larger than %.4f Rmin", topLeakSpeciesNum, thrshold / Rmin));
-            for (int indx = 0; indx < topLeakSpeciesNum; ++indx) {
-            	Species topLeakSpecies = (Species) topLeakSpeciesSubList.get(indx);
-            	//double topLeakFlux = (double) topLeakFluxSubList.get(indx);
-                Logger.info(String
-                        .format("The pressure-dependent network of %s will be explored, with top leakFlux: %10.4e mol/cm^3*s (Rmin: %10.4e mol/cm^3*s)",
-                                topLeakSpecies.getFullName(), topLeakFluxSubList.get(indx), Rmin));
-                if (!leakUpdateList.contains(topLeakSpecies))
-                    leakUpdateList.add(topLeakSpecies);
-            }
-            Logger.info("***********************Stop Printing Top EdgeSpecies and LeakSpecies******************************");
+                Logger.info(String.format("Time: %10.4e s", ps.getTime().getTime()));
+                Logger.info(String.format("Rmin: %10.4e mol/cm^3*s", Rmin));
+                Logger.info("***********************Going to add Top EdgeSpecies******************************");
+                int topSpeciesNum = topSpeciesSubList.size();
+                Logger.info(String.format("Totally we have %d top edge species with fluxes larger than %.4f Rmin", topSpeciesNum, thrshold / Rmin));
+                for (int indx = 0; indx < topSpeciesNum; ++indx) {
+                	Species topSpecies = (Species) topSpeciesSubList.get(indx);
+                	//double topFlux = (double) topFluxSubList.get(indx);
+                    Logger.info(String
+                            .format("Edge species %s will be moved to the core and has top flux: %10.4e mol/cm^3*s (Rmin: %10.4e mol/cm^3*s)",
+                                    topSpecies.getFullName(), topFluxSubList.get(indx), Rmin));
+                    if (!coreUpdateList.contains(topSpecies))
+                        coreUpdateList.add(topSpecies);
+                }
+                Logger.info("***********************Going to add Top LeakSpecies******************************");
+                int topLeakSpeciesNum = topLeakSpeciesSubList.size();
+                Logger.info(String.format("Totally we have %d top leak species with fluxes larger than %.4f Rmin", topLeakSpeciesNum, thrshold / Rmin));
+                for (int indx = 0; indx < topLeakSpeciesNum; ++indx) {
+                	Species topLeakSpecies = (Species) topLeakSpeciesSubList.get(indx);
+                	//double topLeakFlux = (double) topLeakFluxSubList.get(indx);
+                    Logger.info(String
+                            .format("The pressure-dependent network of %s will be explored, with top leakFlux: %10.4e mol/cm^3*s (Rmin: %10.4e mol/cm^3*s)",
+                                    topLeakSpecies.getFullName(), topLeakFluxSubList.get(indx), Rmin));
+                    if (!leakUpdateList.contains(topLeakSpecies))
+                        leakUpdateList.add(topLeakSpecies);
+                }
+                Logger.info("***********************Stop Printing Top EdgeSpecies and LeakSpecies******************************");
+              }// end of for loop of enlarging each rxnSys individually
                         
-            
-            //} else {
-                // neither leakFlux nor Flux is big enough to matter
-            //    leakUpdateList.add(null);
-            //    coreUpdateList.add(null);
-            //}         
-           
-         
-           
-        }// end of for loop of enlarging each rxnSys individually
+        }
+        else if(beta > 1){
+        	// Iterate over reaction systems, enlarging each individually
+            for (int i = 0; i < rxnSystemList.size(); i++) {
+                Logger.info(String.format("Reaction system %d of %d", i + 1,
+                        rxnSystemList.size()));
+                // Don't need to enlarge if the system is already valid
+                if ((Boolean) validList.get(i)) {
+                    coreUpdateList.add(null);
+                    leakUpdateList.add(null);
+                    Logger.info("Model is valid");
+                    continue;
+                }
+                ReactionSystem rxnSystem = (ReactionSystem) rxnSystemList.get(i);
+                PresentStatus ps = rxnSystem.getPresentStatus();
+                // Get Rmin
+                double Rmin = rxnSystem.getRmin();
+                // Determine flux of all species (combining both pDep and non-pDep systems)
+                int len = cerm.getMaxSpeciesID() + 1;
+                double[] flux = new double[len];
+                for (int n = 0; n < len; n++)
+                    flux[n] = 0.0;
+                // Flux from non-pDep and P-dep reactions
+                double[] unreactedSpeciesFlux = ps.getUnreactedSpeciesFlux();// unreacted species flux includes flux from
+    // both p-dep and non-pdep rxns: cf. appendUnreactedSpeciesStatus in ReactionSystem
+                for (Iterator iter = cerm.getUnreactedSpeciesSet().iterator(); iter
+                        .hasNext();) {
+                    Species us = (Species) iter.next();
+                    if (us.getID() < unreactedSpeciesFlux.length)
+                        flux[us.getID()] = unreactedSpeciesFlux[us.getID()];
+                    else
+                        Logger.warning("Attempted to read unreacted species flux for "
+                                + us.getName()
+                                + "("
+                                + us.getID()
+                                + "), but there are only "
+                                + unreactedSpeciesFlux.length + " fluxes.");
+                }
+                // Determine species with maximum flux and its flux
+                Species maxSpecies = null;
+                double maxFlux = 0;
+                for (Iterator iter = cerm.getUnreactedSpeciesSet().iterator(); iter
+                        .hasNext();) {
+                    Species us = (Species) iter.next();
+                    if (Math.abs(flux[us.getID()]) >= maxFlux) {
+                        maxFlux = Math.abs(flux[us.getID()]);
+                        maxSpecies = us;
+                    }
+                }
+                if (maxSpecies == null)
+                    throw new NullPointerException();
+                // Determine species with maximum leak flux and its flux
+                Species maxLeakSpecies = null;
+                double maxLeakFlux = 0;
+                double[] leakFlux = PDepNetwork.getSpeciesLeakFluxes(ps, cerm);
+                for (Iterator iter = cerm.getUnreactedSpeciesSet().iterator(); iter
+                        .hasNext();) {
+                    Species us = (Species) iter.next();
+                    if (Math.abs(leakFlux[us.getID()]) >= maxLeakFlux) {
+                        maxLeakFlux = Math.abs(leakFlux[us.getID()]);
+                        maxLeakSpecies = us;
+                    }
+                }
+                if (maxLeakSpecies == null)
+                    throw new NullPointerException();
+                // Output results of above calculations to console
+                Logger.info(String.format("Time: %10.4e s", ps.getTime().getTime()));
+                Logger.info(String.format("Rmin: %10.4e mol/cm^3*s", Rmin));
+                Logger.info(String
+                        .format("Edge species %s has highest flux: %10.4e mol/cm^3*s (%.6f)",
+                                maxSpecies.getFullName(), maxFlux, maxFlux / Rmin));
+                Logger.info(String
+                        .format("Edge species %s has highest leak flux: %10.4e mol/cm^3*s (%.6f)",
+                                maxLeakSpecies.getFullName(), maxLeakFlux,
+                                maxLeakFlux / Rmin));
+                if (maxFlux > maxLeakFlux && maxFlux > Rmin) {
+                    // Flux is greater than leakFlux, and big enough to matter.
+                    Logger.info(String.format(
+                            "Species %s will be moved to the core.",
+                            maxSpecies.getFullName()));
+                    if (!coreUpdateList.contains(maxSpecies))
+                        coreUpdateList.add(maxSpecies);
+
+                } else if (maxLeakFlux > Rmin) {
+                    // leakFlux is greater than Flux, and big enough to matter.
+                    Logger.info(String
+                            .format("The pressure-dependent network of %s will be explored.",
+                                    maxLeakSpecies.getFullName()));
+                    if (!leakUpdateList.contains(maxLeakSpecies))
+                        leakUpdateList.add(maxLeakSpecies);
+                }
+            }
+        }
+        else {
+            Logger.critical("The Beta for multiple addition of species is not meaningful!");
+            System.exit(0);
+        }
         
         
-        // Check that species don't exist in both coreUpdateList and leakUpdateList
+     // Check that species don't exist in both coreUpdateList and leakUpdateList
         // If any are in both lists, then remove from leakUpdateList
         int coreUpdateNum = coreUpdateList.size();
         int leakUpdateNum = leakUpdateList.size();
@@ -301,7 +391,7 @@ public class RateBasedPDepRME implements ReactionModelEnlarger {
             Logger.critical("Could not find any species to add to core or leak species to explore. Stopping to avoid infinite loop.");
             System.exit(0);
         }
-        
+       
         // Update the reaction model
         if (coreUpdateNum > 0){
         	 for (int indx = 0; indx < coreUpdateNum; ++indx){
